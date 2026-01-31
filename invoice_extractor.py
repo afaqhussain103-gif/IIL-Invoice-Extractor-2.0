@@ -1,21 +1,19 @@
 """
-IIL Invoice Extractor v4.3
-International Industries Limited
-Back to basics - proven working version with date range
+IIL Invoice Extractor v5.0 - PAGE EXTRACTOR
+Extracts individual pages containing search term
 """
 
 import os
-import shutil
 import re
 from datetime import datetime
 import fitz  # PyMuPDF
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-class InvoiceExtractor:
+class IILPageExtractor:
     def __init__(self, root):
         self.root = root
-        self.root.title("IIL Invoice Extractor v4.3")
+        self.root.title("IIL Invoice Extractor v5.0")
         self.root.geometry("650x550")
         
         # IIL Colors
@@ -26,68 +24,72 @@ class InvoiceExtractor:
     
     def setup_ui(self):
         # Header
-        header = tk.Frame(self.root, bg=self.green, height=80)
+        header = tk.Frame(self.root, bg=self.green, height=70)
         header.pack(fill=tk.X)
         header.pack_propagate(False)
         
         tk.Label(
             header,
             text="IIL INVOICE EXTRACTOR",
-            font=('Arial', 16, 'bold'),
+            font=('Arial', 14, 'bold'),
             bg=self.green,
             fg='white'
-        ).pack(pady=15)
+        ).pack(pady=20)
         
         # Main frame
-        main = tk.Frame(self.root, padx=30, pady=20)
+        main = tk.Frame(self.root, padx=25, pady=15)
         main.pack(fill=tk.BOTH, expand=True)
         
-        # Source folder
-        tk.Label(main, text="Source Folder:", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky='w', pady=5)
-        self.source_entry = tk.Entry(main, width=40, font=('Arial', 10))
-        self.source_entry.grid(row=1, column=0, pady=5)
-        tk.Button(main, text="Browse", command=self.browse_source, bg=self.green, fg='white').grid(row=1, column=1, padx=5)
+        # Source
+        tk.Label(main, text="Source Folder (with PDFs):", font=('Arial', 10, 'bold')).pack(anchor='w', pady=3)
+        sf = tk.Frame(main)
+        sf.pack(fill=tk.X, pady=5)
+        self.source_entry = tk.Entry(sf, font=('Arial', 9))
+        self.source_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        tk.Button(sf, text="Browse", command=self.browse_source, bg=self.green, fg='white', padx=10).pack(side=tk.LEFT, padx=5)
         
-        # Destination folder
-        tk.Label(main, text="Destination Folder:", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky='w', pady=5)
-        self.dest_entry = tk.Entry(main, width=40, font=('Arial', 10))
-        self.dest_entry.grid(row=3, column=0, pady=5)
-        tk.Button(main, text="Browse", command=self.browse_dest, bg=self.green, fg='white').grid(row=3, column=1, padx=5)
+        # Destination
+        tk.Label(main, text="Destination Folder:", font=('Arial', 10, 'bold')).pack(anchor='w', pady=3)
+        df = tk.Frame(main)
+        df.pack(fill=tk.X, pady=5)
+        self.dest_entry = tk.Entry(df, font=('Arial', 9))
+        self.dest_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        tk.Button(df, text="Browse", command=self.browse_dest, bg=self.green, fg='white', padx=10).pack(side=tk.LEFT, padx=5)
         
         # Date From
-        tk.Label(main, text="Date From (YYYY-MM-DD) - Optional:", font=('Arial', 10, 'bold')).grid(row=4, column=0, sticky='w', pady=5)
-        self.date_from = tk.Entry(main, width=40, font=('Arial', 10))
-        self.date_from.grid(row=5, column=0, pady=5)
+        tk.Label(main, text="Date From (YYYY-MM-DD, optional):", font=('Arial', 9)).pack(anchor='w', pady=3)
+        self.date_from = tk.Entry(main, font=('Arial', 9))
+        self.date_from.pack(fill=tk.X, pady=3)
         self.date_from.insert(0, "2024-01-01")
         
         # Date To
-        tk.Label(main, text="Date To (YYYY-MM-DD) - Optional:", font=('Arial', 10, 'bold')).grid(row=6, column=0, sticky='w', pady=5)
-        self.date_to = tk.Entry(main, width=40, font=('Arial', 10))
-        self.date_to.grid(row=7, column=0, pady=5)
+        tk.Label(main, text="Date To (YYYY-MM-DD, optional):", font=('Arial', 9)).pack(anchor='w', pady=3)
+        self.date_to = tk.Entry(main, font=('Arial', 9))
+        self.date_to.pack(fill=tk.X, pady=3)
         self.date_to.insert(0, datetime.now().strftime("%Y-%m-%d"))
         
-        # Search text
-        tk.Label(main, text="Search Text (Customer Name/ID):", font=('Arial', 10, 'bold')).grid(row=8, column=0, sticky='w', pady=5)
-        self.search_entry = tk.Entry(main, width=40, font=('Arial', 10))
-        self.search_entry.grid(row=9, column=0, pady=5)
+        # Search
+        tk.Label(main, text="Customer Name or Account ID:", font=('Arial', 10, 'bold')).pack(anchor='w', pady=3)
+        self.search_entry = tk.Entry(main, font=('Arial', 10))
+        self.search_entry.pack(fill=tk.X, pady=5)
         
-        # Progress bar
-        self.progress = ttk.Progressbar(main, length=400, mode='determinate')
-        self.progress.grid(row=10, column=0, columnspan=2, pady=15)
+        # Progress
+        self.progress = ttk.Progressbar(main, length=500, mode='determinate')
+        self.progress.pack(pady=10)
         
-        self.status_label = tk.Label(main, text="Ready", font=('Arial', 9))
-        self.status_label.grid(row=11, column=0, columnspan=2)
+        self.status = tk.Label(main, text="Ready to extract pages", font=('Arial', 9))
+        self.status.pack(pady=5)
         
         # Extract button
         tk.Button(
             main,
-            text="START EXTRACTION",
-            command=self.extract_invoices,
+            text="EXTRACT PAGES",
+            command=self.extract_pages,
             bg=self.yellow,
-            font=('Arial', 12, 'bold'),
+            font=('Arial', 11, 'bold'),
             padx=30,
             pady=10
-        ).grid(row=12, column=0, columnspan=2, pady=15)
+        ).pack(pady=10)
     
     def browse_source(self):
         folder = filedialog.askdirectory()
@@ -101,13 +103,12 @@ class InvoiceExtractor:
             self.dest_entry.delete(0, tk.END)
             self.dest_entry.insert(0, folder)
     
-    def extract_date_from_pdf(self, text):
+    def extract_date_from_text(self, text):
         """Extract date from PDF text"""
-        # Try multiple date patterns
         patterns = [
-            r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})',  # DD/MM/YYYY
-            r'(\d{4})[/-](\d{1,2})[/-](\d{1,2})',  # YYYY-MM-DD
-            r'(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{4})',  # DD Month YYYY
+            r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})',
+            r'(\d{4})[/-](\d{1,2})[/-](\d{1,2})',
+            r'(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{4})',
         ]
         
         for pattern in patterns:
@@ -129,19 +130,19 @@ class InvoiceExtractor:
                     continue
         return None
     
-    def extract_invoices(self):
+    def extract_pages(self):
         source = self.source_entry.get()
         dest = self.dest_entry.get()
-        search_text = self.search_entry.get().lower()
+        search = self.search_entry.get().lower().strip()
         date_from_str = self.date_from.get().strip()
         date_to_str = self.date_to.get().strip()
         
-        if not source or not dest or not search_text:
+        if not source or not dest or not search:
             messagebox.showerror("Error", "Please fill all required fields!")
             return
         
         if not os.path.exists(source):
-            messagebox.showerror("Error", f"Source folder not found:\n{source}")
+            messagebox.showerror("Error", "Source folder doesn't exist!")
             return
         
         # Parse dates
@@ -162,73 +163,96 @@ class InvoiceExtractor:
                 messagebox.showerror("Error", "Invalid 'To' date! Use YYYY-MM-DD")
                 return
         
-        # Create destination folder
         os.makedirs(dest, exist_ok=True)
         
-        # Get all PDF files
-        all_files = os.listdir(source)
-        pdf_files = [f for f in all_files if f.lower().endswith('.pdf')]
+        # Get all PDFs
+        pdf_files = [f for f in os.listdir(source) if f.lower().endswith('.pdf')]
         
         if not pdf_files:
-            messagebox.showerror("Error", f"No PDF files found in:\n{source}\n\nFiles found: {len(all_files)}")
+            messagebox.showerror("Error", f"No PDF files found in:\n{source}")
             return
         
-        total = len(pdf_files)
-        extracted = 0
-        skipped = 0
+        total_pdfs = len(pdf_files)
+        total_pages_extracted = 0
+        pdfs_with_matches = 0
         
-        self.progress['maximum'] = total
+        self.progress['maximum'] = total_pdfs
         
-        for i, filename in enumerate(pdf_files):
-            self.progress['value'] = i + 1
-            self.status_label.config(text=f"Processing {i+1}/{total}: {filename}")
+        # Create a single output PDF for all extracted pages
+        output_pdf = fitz.open()
+        
+        for idx, filename in enumerate(pdf_files):
+            self.progress['value'] = idx + 1
+            self.status.config(text=f"Scanning {idx+1}/{total_pdfs}: {filename[:40]}")
             self.root.update()
             
             filepath = os.path.join(source, filename)
+            pages_found_in_this_pdf = 0
             
             try:
-                # Open PDF and extract text
                 doc = fitz.open(filepath)
-                text = ""
-                for page in doc:
-                    text += page.get_text()
+                
+                for page_num in range(len(doc)):
+                    page = doc[page_num]
+                    text = page.get_text()
+                    
+                    # Check if search term is in page
+                    if search in text.lower():
+                        # Check date if specified
+                        if date_from or date_to:
+                            page_date = self.extract_date_from_text(text)
+                            if page_date:
+                                if date_from and page_date < date_from:
+                                    continue
+                                if date_to and page_date > date_to:
+                                    continue
+                        
+                        # Extract this page
+                        output_pdf.insert_pdf(doc, from_page=page_num, to_page=page_num)
+                        total_pages_extracted += 1
+                        pages_found_in_this_pdf += 1
+                
+                if pages_found_in_this_pdf > 0:
+                    pdfs_with_matches += 1
+                
                 doc.close()
-                
-                # Check if search text is in PDF
-                if search_text not in text.lower():
-                    skipped += 1
-                    continue
-                
-                # Check date range if specified
-                if date_from or date_to:
-                    pdf_date = self.extract_date_from_pdf(text)
-                    if pdf_date:
-                        if date_from and pdf_date < date_from:
-                            skipped += 1
-                            continue
-                        if date_to and pdf_date > date_to:
-                            skipped += 1
-                            continue
-                
-                # Copy file (always overwrite)
-                dest_path = os.path.join(dest, filename)
-                shutil.copy2(filepath, dest_path)
-                extracted += 1
                 
             except Exception as e:
                 print(f"Error processing {filename}: {e}")
         
-        self.status_label.config(text="Complete!")
-        messagebox.showinfo(
-            "Success",
-            f"Extraction Complete!\n\n"
-            f"Total PDFs: {total}\n"
-            f"Extracted: {extracted}\n"
-            f"Skipped: {skipped}\n\n"
-            f"Saved to: {dest}"
-        )
+        # Save the output PDF (overwrite if exists)
+        if total_pages_extracted > 0:
+            output_filename = f"{search.replace(' ', '_')}_extracted.pdf"
+            output_path = os.path.join(dest, output_filename)
+            output_pdf.save(output_path)
+            output_pdf.close()
+            
+            self.status.config(text="Extraction Complete!")
+            messagebox.showinfo(
+                "Success",
+                f"✅ EXTRACTION COMPLETE\n\n"
+                f"📊 Scanned: {total_pdfs} PDFs\n"
+                f"📑 Pages extracted: {total_pages_extracted}\n"
+                f"📁 From {pdfs_with_matches} different PDFs\n\n"
+                f"💾 Saved as:\n{output_filename}\n\n"
+                f"📂 Location:\n{dest}"
+            )
+        else:
+            output_pdf.close()
+            messagebox.showinfo(
+                "No Matches",
+                f"No pages found containing:\n'{search}'\n\n"
+                f"Scanned {total_pdfs} PDFs"
+            )
+        
+        self.progress['value'] = 0
+        self.status.config(text="Ready to extract pages")
 
 if __name__ == "__main__":
+    root = tk.Tk()
+    app = IILPageExtractor(root)
+    root.mainloop()
+":
     root = tk.Tk()
     app = InvoiceExtractor(root)
     root.mainloop()
