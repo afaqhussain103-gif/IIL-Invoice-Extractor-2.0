@@ -1,4 +1,4 @@
-name: Build IIL Invoice Extractor
+name: Build Executable
 
 on:
   push:
@@ -8,16 +8,16 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v3
     
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: '3.10'
     
     - name: Install dependencies
       run: |
@@ -27,8 +27,14 @@ jobs:
     
     - name: Build executable
       run: |
-        pyinstaller --onefile --windowed --name="IIL_Invoice_Extractor_v3.0" --icon=NONE invoice_extractor.py
+        pyinstaller --onefile --windowed --name "IIL_Invoice_Extractor" --hidden-import=fitz --hidden-import=frontend invoice_extractor.py
     
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: IIL-Invoice-Extractor-Windows
+        path: dist/IIL_Invoice_Extractor.exe
+
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
